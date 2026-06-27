@@ -1,46 +1,54 @@
 from flask import Flask, request
+import os
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# -------------------------------
-# Scam Detection Logic
-# -------------------------------
-def detect_scam(text):
-    scam_keywords = [
-        "win money",
-        "free cash",
-        "click here",
-        "urgent",
-        "password",
-        "bank",
-        "claim now",
-        "limited offer"
-    ]
-
-    for word in scam_keywords:
-        if word in text.lower():
-            return True
-    return False
-
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # -------------------------------
-# HOME PAGE
+# AI SCAM DETECTION
+# -------------------------------
+def detect_scam_ai(text):
+    prompt = f"""
+    Analyze this message and determine if it is a scam.
+
+    Message: "{text}"
+
+    Respond ONLY with:
+    - SAFE
+    - SUSPICIOUS
+    - SCAM
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    result = response.choices[0].message.content.strip()
+
+    if "SCAM" in result:
+        return "🚨 SCAM DETECTED", "red"
+    elif "SUSPICIOUS" in result:
+        return "⚠️ SUSPICIOUS", "orange"
+    else:
+        return "✅ SAFE", "green"
+
+
+# -------------------------------
+# HOME
 # -------------------------------
 @app.route("/")
 def home():
     return """
     <html>
-    <head>
-        <title>Scam Scanner</title>
-    </head>
-    <body style="font-family: Arial; text-align: center; margin-top: 50px;">
-        <h1>🔥 Scam Scanner</h1>
-        <p>Paste a message below to check if it's a scam:</p>
-
+    <body style="font-family: Arial; text-align:center; background:#0f172a; color:white; margin-top:50px;">
+        <h1>🤖 AI Scam Scanner</h1>
         <form action="/scan" method="post">
-            <input type="text" name="message" placeholder="Enter message..." style="width:300px; padding:10px;" required>
+            <input name="message" style="width:60%; padding:10px;" placeholder="Paste message..." required>
             <br><br>
-            <button type="submit" style="padding:10px 20px;">Scan</button>
+            <button type="submit">Scan</button>
         </form>
     </body>
     </html>
@@ -48,32 +56,24 @@ def home():
 
 
 # -------------------------------
-# SCAN FUNCTION
+# SCAN
 # -------------------------------
 @app.route("/scan", methods=["POST"])
 def scan():
     message = request.form.get("message")
 
-    if detect_scam(message):
-        result = "⚠️ This looks like a SCAM!"
-        color = "red"
-    else:
-        result = "✅ This looks SAFE."
-        color = "green"
+    result, color = detect_scam_ai(message)
 
     return f"""
     <html>
-    <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+    <body style="text-align:center; background:#020617; color:white; margin-top:50px;">
         <h2 style="color:{color};">{result}</h2>
-        <br>
-        <a href="/">🔁 Scan another message</a>
+        <p>{message}</p>
+        <a href="/">Try again</a>
     </body>
     </html>
     """
 
 
-# -------------------------------
-# RUN SERVER
-# -------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
