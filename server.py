@@ -1,43 +1,42 @@
 from flask import Flask, request
+import openai
 import os
-from openai import OpenAI
 
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# -------------------------------
+# SET API KEY
+# -------------------------------
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # -------------------------------
-# AI SCAM DETECTION
+# AI SCAM DETECTION FUNCTION
 # -------------------------------
 def detect_scam_ai(text):
-    prompt = f"""
-    Analyze this message and determine if it is a scam.
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a scam detection AI."},
+                {"role": "user", "content": f"Is this a scam? Answer SAFE, SUSPICIOUS, or SCAM only:\n{text}"}
+            ]
+        )
 
-    Message: "{text}"
+        result = response["choices"][0]["message"]["content"].strip()
 
-    Respond ONLY with:
-    - SAFE
-    - SUSPICIOUS
-    - SCAM
-    """
+        if "SCAM" in result:
+            return "🚨 SCAM DETECTED", "red"
+        elif "SUSPICIOUS" in result:
+            return "⚠️ SUSPICIOUS", "orange"
+        else:
+            return "✅ SAFE", "green"
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    result = response.choices[0].message.content.strip()
-
-    if "SCAM" in result:
-        return "🚨 SCAM DETECTED", "red"
-    elif "SUSPICIOUS" in result:
-        return "⚠️ SUSPICIOUS", "orange"
-    else:
-        return "✅ SAFE", "green"
+    except Exception as e:
+        return f"Error: {str(e)}", "white"
 
 
 # -------------------------------
-# HOME
+# HOME PAGE
 # -------------------------------
 @app.route("/")
 def home():
@@ -56,7 +55,7 @@ def home():
 
 
 # -------------------------------
-# SCAN
+# SCAN ROUTE
 # -------------------------------
 @app.route("/scan", methods=["POST"])
 def scan():
@@ -69,11 +68,15 @@ def scan():
     <body style="text-align:center; background:#020617; color:white; margin-top:50px;">
         <h2 style="color:{color};">{result}</h2>
         <p>{message}</p>
-        <a href="/">Try again</a>
+        <br>
+        <a href="/" style="color:lightblue;">Try again</a>
     </body>
     </html>
     """
 
 
+# -------------------------------
+# RUN SERVER
+# -------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
