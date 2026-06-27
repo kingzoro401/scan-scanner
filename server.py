@@ -1,20 +1,20 @@
 from flask import Flask, request
-import openai
+from openai import OpenAI
 import os
 
 app = Flask(__name__)
 
 # -------------------------------
-# SET API KEY
+# CREATE CLIENT (NEW VERSION)
 # -------------------------------
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -------------------------------
 # AI SCAM DETECTION FUNCTION
 # -------------------------------
 def detect_scam_ai(text):
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a scam detection AI."},
@@ -22,7 +22,7 @@ def detect_scam_ai(text):
             ]
         )
 
-        result = response["choices"][0]["message"]["content"].strip()
+        result = response.choices[0].message.content.strip()
 
         if "SCAM" in result:
             return "🚨 SCAM DETECTED", "red"
